@@ -1,13 +1,11 @@
 import express from 'express';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import './tools';
-import './resources';
 import { createStreamableTransport } from './transports/streamableHttp';
 import { createSSETransport } from './transports/sse';
 import { config } from './config';
 import { authRouter } from './auth/auth.route';
 import healthRouter from './routes/health';
-import { checkToken } from './middlewares/checkToken';
+import { checkClientKey } from './middlewares/checkClientKey';
 
 export const server = new McpServer({
     name: config.serverName,
@@ -18,13 +16,14 @@ const app = express();
 app.use(express.json());
 
 app.use('/health', healthRouter);
-app.use('/auth', authRouter)
 
+app.use(checkClientKey)
+app.use('/auth', authRouter)
 
 const sseTransports: Record<string, any> = {};
 
 // StreamableHTTP endpoint
-app.post('/mcp', checkToken, async (req, res) => {
+app.post('/mcp', async (req, res) => {
     const transport = createStreamableTransport();
 
     res.on('close', () => transport.close());
@@ -33,7 +32,7 @@ app.post('/mcp', checkToken, async (req, res) => {
 });
 
 // SSE endpoint
-app.get('/sse', checkToken, (req, res) => {
+app.get('/sse', (req, res) => {
     const transport = createSSETransport(res);
     sseTransports[transport.sessionId] = transport;
 
@@ -42,7 +41,7 @@ app.get('/sse', checkToken, (req, res) => {
 });
 
 // Legacy messages
-app.post('/messages', checkToken, async (req, res) => {
+app.post('/messages', async (req, res) => {
     const sessionId = req.query.sessionId as string;
     const transport = sseTransports[sessionId];
     if (transport) await transport.handlePostMessage(req, res, req.body);
