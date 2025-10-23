@@ -6,11 +6,16 @@ import { config } from './config';
 import { authRouter } from './auth/auth.route';
 import healthRouter from './routes/health';
 import { checkClientKey } from './middlewares/checkClientKey';
+import { registerAllResource } from './resources';
+import { registerAllTool } from './tools';
 
 export const server = new McpServer({
     name: config.serverName,
     version: config.serverVersion
 });
+
+registerAllResource();
+registerAllTool();
 
 const app = express();
 app.use(express.json());
